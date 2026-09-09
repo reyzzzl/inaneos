@@ -1,7 +1,5 @@
 // main kernel
 // modul
-#include <sys/cdefs.h>
-
 
 struct __attribute__((packed)) multiboot_header {
     unsigned int magic;
@@ -9,7 +7,7 @@ struct __attribute__((packed)) multiboot_header {
     unsigned int checksum;
 };
 
-__attribute__((section(".multiboot"), used, alighned(4)))
+__attribute__((section(".multiboot"), used, aligned(4)))
 const struct multiboot_header mb = {
     0x1BADB002,
     0x00000003,
@@ -19,6 +17,7 @@ const struct multiboot_header mb = {
 __attribute__((aligned(16)))
 unsigned char stack[16384];
 
+// TODO: move this to a proper boot asm file later
 void kernel_main(void);
 
 __attribute__((naked))
@@ -33,11 +32,12 @@ void _start(void) {
 }
 
 void kernel_main(void) {
+    // FIXME: hardcoded vga address, breaks on serial-only machines
     volatile char *vga = (volatile char *)0xB8000;
     const char *msg = "<<>>";
 
     for (int i = 0; msg[i] != '\0'; i++) {
-        vga[i*2]       = msg[i];
-        vga[i * 2 + i] = 0x0f;
+        vga[i * 2] = msg[i];
+        vga[i * 2 + 1] = 0x0f;
     }
 }
