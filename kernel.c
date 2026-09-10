@@ -15,7 +15,7 @@ void kernel_main(unsigned int magic, unsigned int mbi_addr) {
     (void)mbi_addr;
 
     term_init();
-    term_puts("inaneos v0.0.2\n");
+    term_puts("inaneos v0.0.1\n");
 
     // TODO: idt + pic next
     // TODO: tiny shell
