@@ -1,43 +1,22 @@
 // main kernel
 // modul
-#include <sys/cdefs.h>
 
+#include "vga.h"
 
-struct __attribute__((packed)) multiboot_header {
-    unsigned int magic;
-    unsigned int flags;
-    unsigned int checksum;
-};
-
-__attribute__((section(".multiboot"), used, alighned(4)))
-const struct multiboot_header mb = {
-    0x1BADB002,
-    0x00000003,
-    -(0x1BADB002 + 0x00000003)
-};
-
-__attribute__((aligned(16)))
-unsigned char stack[16384];
-
-void kernel_main(void);
-
-__attribute__((naked))
-void _start(void) {
-    __asm__ volatile(
-        "cli\n\t"
-        "movl $stack+16384,%esp\n\t"
-        "call kernel_main\n"
-        "1: hlt\n\t"
-        "jmp 1b"
-    );
-}
-
-void kernel_main(void) {
-    volatile char *vga = (volatile char *)0xB8000;
-    const char *msg = "<<>>";
-
-    for (int i = 0; msg[i] != '\0'; i++) {
-        vga[i*2]       = msg[i];
-        vga[i * 2 + i] = 0x0f;
+// TODO: define multiboot_info
+// dont guess the offsets
+void kernel_main(unsigned int magic, unsigned int mbi_addr) {
+    // use multiboot magic
+    if (magic != 0x2BADB002) {
+        return;
     }
+
+    // TODO: parse mbi_addr
+    (void)mbi_addr;
+
+    term_init();
+    term_puts("inaneos v0.0.1\n");
+
+    // TODO: idt + pic next
+    // TODO: tiny shell
 }
