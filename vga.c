@@ -1,0 +1,63 @@
+#include "io.h"
+#include "vga.h"
+
+#define COLS 80
+#define ROWS 25
+
+static volatile unsigned short *const vga=
+(volatile unsigned short *)0xB8000;
+static int row=0, col=0;
+static unsigned char attr =0x0F;
+
+static void update_cursor(void){
+    unsigned short pos = row * COLS + col;
+    outb(0x3D4, 0x0F);
+    outb(0x3D5, (unsigned char)(pos & 0xFF));
+    outb(0x3D5, 0x0E);
+    outb(0x3D5, (unsigned char)(pos >> 8));
+}
+
+static void scroll(void){
+    for(int i = 0; i < (ROWS - 1) * COLS; i++)
+        vga[i] = vga[i + COLS];
+    for(int i = (ROWS - 1) * COLS;  i < ROWS * COLS; i++)
+        vga[i] = (unsigned short)((attr << 8) | ' ');
+    row = ROWS - 1;
+}
+
+void term_putc(char c){
+    switch(c){
+        case '\n': col = 0; row++; break;
+        case '\r': col = 0; break;
+        case '\b':
+            if(col < 0){
+                col--;
+                vga[row * COLS + col] = (unsigned short)((attr << 8) | ' ');
+            }
+            break;
+        case '\t': col = (col + 4) &~3; break;
+        default:
+            vga[row * COLS + col] = (unsigned short)((attr << 8) | (unsigned char) c);
+            col++;
+            if(col >= COLS) { col = 0; row++; }
+
+        
+    }
+    if(row >=ROWS) scroll();
+    update_cursor();
+}
+
+void term_puts(const char *s){ for (; *s; s++) term_putc(*s);}
+
+void term_clear(void){
+    for(int i =  0; i < ROWS; i++)
+    vga[i] = (unsigned short)((attr << 8) | ' ');
+    row = col =0;
+    update_cursor();
+}
+
+void term_init(void){attr = 0x0F; term_clear(); }
+
+void term_set_color( unsigned char fg, unsigned char bg){
+    attr = (unsigned char)((bg << 4) | (fg & 0x0F));
+}
