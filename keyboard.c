@@ -15,8 +15,7 @@ static const char kbd_map[128] = {
 static const char hex_digits[] = "0123456789ABCDEF";
 
 static void serial_putc(char c) {
-  while (!(inb(0x3FD) & 0x20))
-    ;
+  while (!(inb(0x3FD) & 0x20));
   outb(0x3F8, c);
 }
 
