@@ -33,7 +33,7 @@ static void running(const char *line){
         term_puts(line + 5);
         term_puts("\n");
     } else if(same_condition(line, "info")){
-        term_puts("Inaneos beta 0.0 version\n");
+        term_puts("Inaneos beta 0.0.1 version\n");
     } else if(same_condition(line, "reboot")){
         outb(0x64, 0xFE);
         for(;;) __asm__ volatile("hlt");

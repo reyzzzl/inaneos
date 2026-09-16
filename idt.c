@@ -21,13 +21,13 @@ static unsigned short current_cs(void) {
 
 void idt_set_gate(int n, unsigned int handler) {
     idt[n].offset_low = handler & 0xFFFF;
-    idt[n].selector    = current_cs();      // segment kode milik GRUB
+    idt[n].selector    = current_cs();      // GRUB's code segment
     idt[n].zero        = 0;
     idt[n].type_attr   = 0x8E;
     idt[n].offset_high = (handler >> 16) & 0xFFFF;
 }
 
-// Dipanggil jika CPU mengalami exception (page fault, divide by zero, dll)
+// Called when the CPU raises an exception (page fault, divide by zero, etc.)
 void panic(void) {
     term_set_color(0x0C, 0x00);
     term_puts("\n*** EXCEPTION! CPU menemukan kondisi fatal ***\n");
