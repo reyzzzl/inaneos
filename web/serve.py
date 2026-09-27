@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-# localhost server for the wasm preview.
-# Sends COOP/COEP so the page may use SharedArrayBuffer (needed by
-# web/worker.js key queue), correct wasm MIME, and maps /disk.img to
-# the repo disk image built by `make disk.img`.
 import http.server
 import os
 import sys

@@ -1,5 +1,3 @@
-// term grid: logic port of drivers/vga/vga.c (update_cursor is a no-op,
-// the browser reads the cursor via term_cursor()).
 #include "term_grid.h"
 
 #define COLS 80
@@ -24,7 +22,7 @@ void term_clear(void) {
 }
 
 void term_putc(char c) {
-  // pending wrap lands first
+  // wrap first
   if (wrap && c != '\n' && c != '\r') {
     wrap = 0;
     col = 0;
@@ -72,7 +70,6 @@ void term_putc(char c) {
       wrap = 1;
   }
 
-  // scroll if full
   if (row >= ROWS) {
     for (int i = 0; i < (ROWS - 1) * COLS; i++)
       cells[i] = cells[i + COLS];

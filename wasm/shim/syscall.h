@@ -1,7 +1,5 @@
 #pragma once
 
-// syscall ABI for wasm: same signatures as kernel/syscall.h wrappers,
-// implemented by wasm/sys_shim.c against the browser environment.
 long sys_puts(const char *s);
 long sys_getc(void);
 long sys_info(void);

@@ -1,7 +1,4 @@
-// Minimal COOP/COEP service worker so SharedArrayBuffer (shared wasm
-// memory) works on static hosts like GitHub Pages that cannot send
-// isolation headers. Local serve.py already sends them, so this is a
-// no-op there (index.html only registers when not isolated).
+// COOP/COEP
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
 self.addEventListener('fetch', (e) => {

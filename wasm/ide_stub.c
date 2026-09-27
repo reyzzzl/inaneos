@@ -1,11 +1,8 @@
-// IDE stub for wasm: sectors come from the disk image the browser
-// fetched (see web/worker.js), so part.c/fat.c run unmodified.
 #include "ide.h"
 
-// JS imports (worker provides them over the fetched disk.img)
 extern int disk_read(unsigned long lba, unsigned char *dst);   // 512B, 0 ok
 extern int disk_write(unsigned long lba, const unsigned char *src); // 512B, 0 ok
-extern unsigned long disk_sectors(void); // 0 when no disk loaded
+extern unsigned long disk_sectors(void); // no disk
 
 int ide_init(void) { return 0; }
 

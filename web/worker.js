@@ -1,12 +1,8 @@
-// inaneos wasm worker: runs the REAL userspace (shell/calc/keo) + the
-// REAL kernel fs/fat/part from web/inaneos.wasm. The wasm thread owns the
-// CPU; the UI thread talks to it through shared wasm memory (key queue),
-// so no postMessage traffic is needed while it runs.
 let wasm = null;
 let memory = null;
-let disk = null; // Uint8Array of disk.img, null = no disk (like QEMU w/o image)
+let disk = null; // disk bytes
 let booting = false;
-let flag = null; // Int32Array view of keyq.seq, set after boot
+let flag = null; // key flag
 
 const imports = {
   env: {
@@ -55,7 +51,7 @@ async function boot() {
     flag = new Int32Array(memory.buffer, wasm.keyq_ptr() + 8, 1);
     postMessage({ t: 'mem', mem: memory.buffer, cellsPtr: wasm.term_cells(), keyqPtr: wasm.keyq_ptr() });
     postMessage({ t: 'ready', disk: !!disk });
-    let enter = () => wasm.kernel_main(); // first boot inits, then shell
+    let enter = () => wasm.kernel_main(); // boot
     for (;;) {
       try {
         enter();
@@ -68,13 +64,13 @@ async function boot() {
         }
         const r = wasm.halt_reason_get();
         if (r === 3) {
-          enter = () => wasm.enter_shell(); // sys_exit: fresh shell entry
+          enter = () => wasm.enter_shell(); // reentry
           continue;
         }
         if (r === 1) {
           postMessage({ t: 'rebooted' });
           booting = false;
-          boot(); // hardware reboot: fresh instance, disk persists
+          boot(); // reboot
           return;
         }
         postMessage({ t: 'halted' });

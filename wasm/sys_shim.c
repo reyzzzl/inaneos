@@ -1,31 +1,18 @@
-// syscall ABI shim for wasm: same observable behavior as the
-// SYS_* cases in kernel/syscall.c, backed by the browser instead
-// of hardware. Reuses the real kernel/fs.c, kernel/fat.c and
-// kernel/part.c, so file and disk behavior is identical to QEMU.
-//
-// Divergences (documented, hardware-bound):
-// - meminfo values are fixed constants (QEMU reports host RAM).
-// - Re-entering the shell after sys_exit keeps C statics (e.g. shell
-//   history); QEMU reloads a fresh ELF and clears them.
-// - reboot re-runs kernel_main in the same instance (RAM fs resets,
-//   same as hardware reboot); poweroff freezes with the same message.
 #include "syscall.h"
 #include "fs.h"
 #include "fat.h"
 #include "part.h"
 #include "term_grid.h"
 
-// provided by the JS worker
-extern void key_wait(int seq); // block until keyq.seq != seq (Atomics.wait)
+extern void key_wait(int seq); // Atomics.wait
 
-// key queue in shared wasm memory: the UI thread writes, the wasm
-// thread consumes. Layout is fixed so JS can map it (see web/worker.js).
+// key queue
 #define KEY_N 64
 typedef struct {
-  int head;         // +0, written by UI
-  int tail;         // +4, written by wasm
-  int seq;          // +8, bumped by UI on every key
-  int buf[KEY_N];   // +12
+  int head;       // +0 UI
+  int tail;       // +4 wasm
+  int seq;        // +8 seq
+  int buf[KEY_N]; // +12
 } keyq_t;
 static keyq_t keyq;
 _Static_assert(__builtin_offsetof(keyq_t, tail) == 4, "keyq layout");
@@ -33,14 +20,11 @@ _Static_assert(__builtin_offsetof(keyq_t, seq) == 8, "keyq layout");
 _Static_assert(__builtin_offsetof(keyq_t, buf) == 12, "keyq layout");
 keyq_t *keyq_ptr(void) { return &keyq; }
 
-// our programs (user/*.c built with -Duser_main=<prog>_main)
 void shell_main(int argc, char **argv);
 void calc_main(int argc, char **argv);
 void keo_main(int argc, char **argv);
 
-// halt protocol: reason readable by the worker after the trap.
-// Reboot/poweroff/exit all unwind the wasm stack via trap; the worker
-// then reboots, freezes, or re-enters the shell (like enter_program).
+// halt codes
 #define HALT_REBOOT 1
 #define HALT_POWEROFF 2
 #define HALT_EXIT 3
@@ -51,11 +35,9 @@ static void halt_trap(int r) {
   __builtin_trap();
 }
 
-// meminfo constants (same format as QEMU, values are fixed)
 #define MEM_FREE_KB 126976UL
 #define MEM_TOTAL_KB 131072UL
 
-// error codes (same as kernel/syscall.h)
 #define E_INVAL -22
 #define SYS_IO_MAX 4096
 
@@ -67,7 +49,6 @@ static int str_same(const char *a, const char *b) {
   return *a == *b;
 }
 
-// bounded copy, same rules as copy_str in kernel/syscall.c
 static long copy_str(char *dst, const char *src, unsigned long cap) {
   unsigned long n = 0;
   if (!src || cap == 0)
@@ -82,7 +63,6 @@ static long copy_str(char *dst, const char *src, unsigned long cap) {
   return (long)n;
 }
 
-// emit helpers, same as kernel/syscall.c
 static unsigned long emit_str(char *buf, unsigned long pos, unsigned long cap,
                               const char *s) {
   while (*s) {
@@ -171,7 +151,6 @@ long sys_poweroff(void) {
 }
 
 long sys_exit(void) {
-  // enter_program(0, 0): trap out, the worker re-enters a fresh shell.
   halt_trap(HALT_EXIT);
 }
 
@@ -204,7 +183,7 @@ long sys_run(const char *name, const char *arg) {
 }
 
 long sys_lsmod(char *buf, unsigned long cap) {
-  // same order as grub.cfg modules
+  // grub order
   static const char *mods[] = {"shell", "calc", "keo"};
   unsigned long pos = 0;
   if (!buf || cap > 256)
