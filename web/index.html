@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>inaneos web preview</title>
+    <script>
+      // isolation fix
+      (function () {
+        if (!('serviceWorker' in navigator) || window.crossOriginIsolated) return;
+        if (sessionStorage.getItem('sw-reload')) return;
+        navigator.serviceWorker.register('sw.js').then(function () {
+          sessionStorage.setItem('sw-reload', '1');
+          location.reload();
+        }).catch(function () {});
+      })();
+    </script>
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #2b972b;
+            font-family: monospace;
+            padding: 20px;
+        }
+        #screen {
+            background-color: #000;
+            border: 2px solid #333;
+            padding: 10px;
+            font-size: 16px;
+            line-height: 1.25;
+            outline: none;
+            user-select: none;
+        }
+        #screen .row { white-space: pre; display: block; height: 1.25em; }
+        #screen .cursor { outline: 1px solid #fff; }
+        #bar { margin-top: 8px; color: #888; }
+        #bar button { font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>inaneos (WASM mode)</h1>
+    <div id="screen" tabindex="0"><span class="row">loading...</span></div>
+    <div id="bar"><span id="status">booting...</span> <button id="reboot">reboot</button></div>
+    <script>
+      // palette
+      const PAL = ['#000','#00a','#0a0','#0aa','#a00','#a0a','#a50','#aaa',
+                   '#555','#55f','#5f5','#5ff','#f55','#f5f','#ff5','#fff'];
+      const COLS = 80, ROWS = 25, KEY_N = 64;
+      const screen = document.getElementById('screen');
+      const status = document.getElementById('status');
+      let mem = null, cellsPtr = 0, keyqPtr = 0, lastHash = 0;
+      const worker = new Worker('worker.js');
+      screen.focus();
+
+      // key queue
+      function keyPush(code) {
+        if (!mem || !keyqPtr) return;
+        const q = new Int32Array(mem, keyqPtr, 3 + KEY_N);
+        const h = Atomics.load(q, 0);
+        q[3 + h] = code;
+        Atomics.store(q, 0, (h + 1) % KEY_N);
+        Atomics.add(q, 2, 1);
+        Atomics.notify(q, 2, 1);
+      }
+
+      function esc(s) {
+        return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      }
+      function render() {
+        if (!mem) { requestAnimationFrame(render); return; }
+        const cells = new Uint16Array(mem, cellsPtr, COLS * ROWS);
+        let h = 0;
+        for (let i = 0; i < cells.length; i++) h = (h * 31 + cells[i]) | 0;
+        if (h !== lastHash) {
+          lastHash = h;
+          let html = '';
+          for (let r = 0; r < ROWS; r++) {
+            let row = '', run = '', rf = -1, rb = -1;
+            const flush = () => {
+              if (run) { row += '<span style="color:' + PAL[rf] + ';background:' + PAL[rb] + '">' + esc(run) + '</span>'; run = ''; }
+            };
+            for (let c = 0; c < COLS; c++) {
+              const v = cells[r * COLS + c];
+              const ch = v & 0xff, at = (v >> 8) & 0xff;
+              const fg = at & 0x0f, bg = (at >> 4) & 0x0f;
+              const g = String.fromCharCode(ch === 0 ? 32 : ch);
+              if (fg !== rf || bg !== rb) { flush(); rf = fg; rb = bg; }
+              run += g;
+            }
+            flush();
+            html += '<span class="row">' + row + '</span>';
+          }
+          screen.innerHTML = html;
+        }
+        requestAnimationFrame(render);
+      }
+      requestAnimationFrame(render);
+
+      worker.onmessage = (e) => {
+        const m = e.data;
+        if (m.t === 'mem') { mem = m.mem; cellsPtr = m.cellsPtr; keyqPtr = m.keyqPtr; lastHash = 0; }
+        else if (m.t === 'ready') { status.textContent = m.disk ? 'running (disk attached)' : 'running (no disk)'; screen.focus(); }
+        else if (m.t === 'rebooted') { status.textContent = 'rebooted'; }
+        else if (m.t === 'halted') { status.textContent = 'halted: safe to power off (press reboot)'; }
+        else if (m.t === 'error') { status.textContent = 'error: ' + m.msg; }
+      };
+      worker.postMessage({ t: 'boot' });
+      document.getElementById('reboot').onclick = () => { status.textContent = 'rebooting...'; worker.postMessage({ t: 'boot' }); };
+
+      document.addEventListener('keydown', (e) => {
+        let code = -1;
+        if (e.key === 'Enter') code = 10;
+        else if (e.key === 'Backspace') code = 8;
+        else if (e.key === 'Escape') code = 27;
+        else if (e.key === 'Tab') code = 9;
+        else if (e.key === 'ArrowUp') code = 0x80;
+        else if (e.key === 'ArrowDown') code = 0x81;
+        else if (e.key === 'ArrowLeft') code = 0x82;
+        else if (e.key === 'ArrowRight') code = 0x83;
+        else if (e.key === 'Delete') code = 0x84;
+        else if (e.key.length === 1) code = e.key.charCodeAt(0);
+        if (code >= 0) { e.preventDefault(); keyPush(code); }
+      });
+      screen.onclick = () => screen.focus();
+    </script>
+</body>
+</html>
