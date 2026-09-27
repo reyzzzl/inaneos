@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <title>inaneos web preview</title>
     <script>
-
+      // isolation fix
       (function () {
         if (!('serviceWorker' in navigator) || window.crossOriginIsolated) return;
         if (sessionStorage.getItem('sw-reload')) return;
@@ -41,7 +41,7 @@
     <div id="screen" tabindex="0"><span class="row">loading...</span></div>
     <div id="bar"><span id="status">booting...</span> <button id="reboot">reboot</button></div>
     <script>
-      // VGA text palette
+      // palette
       const PAL = ['#000','#00a','#0a0','#0aa','#a00','#a0a','#a50','#aaa',
                    '#555','#55f','#5f5','#5ff','#f55','#f5f','#ff5','#fff'];
       const COLS = 80, ROWS = 25, KEY_N = 64;
@@ -51,8 +51,7 @@
       const worker = new Worker('worker.js');
       screen.focus();
 
-      // key queue lives in shared wasm memory (see wasm/sys_shim.c keyq_t):
-      // UI thread is the producer, the wasm thread consumes.
+      // key queue
       function keyPush(code) {
         if (!mem || !keyqPtr) return;
         const q = new Int32Array(mem, keyqPtr, 3 + KEY_N);
@@ -107,7 +106,6 @@
       worker.postMessage({ t: 'boot' });
       document.getElementById('reboot').onclick = () => { status.textContent = 'rebooting...'; worker.postMessage({ t: 'boot' }); };
 
-      // key codes match drivers/keyboard decoded getchar (KEY_* >= 0x80)
       document.addEventListener('keydown', (e) => {
         let code = -1;
         if (e.key === 'Enter') code = 10;
